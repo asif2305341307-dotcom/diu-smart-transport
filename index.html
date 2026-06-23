@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DIU Smart Transport | CRUD Edition</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --primary-dark: #1d4ed8;
+            --secondary: #10b981;
+            --danger: #ef4444;
+            --glass-bg: rgba(255, 255, 255, 0.92);
+            --glass-border: rgba(255, 255, 255, 0.3);
+            --text-dark: #0f172a;
+            --text-muted: #64748b;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Poppins', sans-serif; }
+        
+        body { 
+            background: #0f172a; 
+            color: #fff;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* --- Dynamic Animated Background --- */
+        .hero-slider { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -2; overflow: hidden; }
+        .slide { position: absolute; width: 100%; height: 100%; background-size: cover; background-position: center; opacity: 0; transition: opacity 1.5s ease; transform: scale(1.05); }
+        .slide.active { opacity: 1; transform: scale(1); }
+        .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(15, 23, 42, 0.7)); z-index: -1; }
+
+        /* --- Header --- */
+        header { 
+            padding: 20px 8%; 
+            background: rgba(15, 23, 42, 0.7); 
+            backdrop-filter: blur(15px); 
+            display: flex; justify-content: space-between; align-items: center; 
+            position: sticky; top: 0; z-index: 100;
+            border-bottom: 1px solid var(--glass-border);
+        }
+        .logo { font-size: 1.5rem; font-weight: 800; letter-spacing: -1px; }
+        .logo span { color: var(--primary); }
+
+        /* --- Authentication UI --- */
+        .auth-container { display: flex; align-items: center; justify-content: center; min-height: 85vh; padding: 20px; }
+        .auth-card { 
+            background: var(--glass-bg); 
+            padding: 40px; border-radius: 28px; 
+            width: 100%; max-width: 450px; 
+            text-align: center; color: var(--text-dark);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--glass-border);
+            animation: slideUp 0.6s ease-out;
+        }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* --- Input Fields --- */
+        input, select { 
+            width: 100%; padding: 14px 18px; margin: 12px 0; 
+            border: 2px solid #e2e8f0; border-radius: 14px; outline: none; 
+            font-size: 14px; transition: 0.3s;
+        }
+        input:focus, select:focus { border-color: var(--primary); box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1); }
+
+        /* --- Buttons --- */
+        .btn { 
+            width: 100%; padding: 15px; border: none; border-radius: 14px; 
+            font-weight: 700; cursor: pointer; transition: 0.3s; margin-top: 10px;
+            font-size: 15px; letter-spacing: 0.5px;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-dark); transform: translateY(-2px); }
+        .btn-success { background: var(--secondary); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-link { background: none; color: var(--primary); padding: 5px; margin-top: 15px; font-weight: 600; text-decoration: none; }
+
+        /* --- Dashboard Layout --- */
+        .container { max-width: 1200px; margin: 0 auto; padding: 30px 20px; }
+        .dashboard { display: grid; grid-template-columns: 1.4fr 0.6fr; gap: 30px; }
+        
+        .panel { 
+            background: var(--glass-bg); 
+            padding: 30px; border-radius: 28px; 
+            color: var(--text-dark);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            margin-bottom: 20px;
+        }
+
+        /* --- Bus Selection Grid --- */
+        .bus-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 18px; margin-top: 25px; }
+        .bus-card { 
+            background: #f8fafc; padding: 20px; border-radius: 20px; 
+            border: 2px solid transparent; cursor: pointer; transition: 0.3s;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+        }
+        .bus-card:hover { transform: scale(1.02); background: #fff; border-color: #cbd5e1; }
+        .bus-card.active { border-color: var(--primary); background: #eff6ff; }
+
+        /* --- Seat Map Design --- */
+        .bus-chassis { 
+            background: #1e293b; padding: 45px 30px; border-radius: 45px; 
+            max-width: 320px; margin: 40px auto; 
+            border: 10px solid #334155; position: relative;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.4);
+        }
+        .seat-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 15px; margin-bottom: 15px; }
+        .seat { 
+            height: 42px; background: #94a3b8; border-radius: 10px; 
+            display: flex; align-items: center; justify-content: center; 
+            font-size: 12px; font-weight: 700; cursor: pointer; color: #fff; transition: 0.2s; 
+        }
+        .seat.booked { background: #334155 !important; cursor: not-allowed; opacity: 0.4; }
+        .seat.selected { 
+            background: var(--primary) !important; 
+            box-shadow: 0 0 15px var(--primary); 
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
+        .aisle { visibility: hidden; }
+
+        /* --- Payment Modal --- */
+        .modal-overlay { 
+            position: fixed; top:0; left:0; width:100%; height:100%; 
+            background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(8px);
+            display:flex; justify-content:center; align-items:center; z-index:1000; 
+        }
+        .payment-modal { 
+            background: #fff; width: 95%; max-width: 420px; padding: 40px; 
+            border-radius: 30px; color: var(--text-dark); animation: slideUp 0.4s;
+        }
+        .pay-methods { display: flex; justify-content: space-around; margin: 25px 0; }
+        .pay-icon { width: 75px; border: 2px solid #f1f5f9; padding: 12px; border-radius: 18px; cursor: pointer; transition: 0.3s; }
+        .pay-icon.selected { border-color: var(--primary); background: #eff6ff; transform: translateY(-5px); }
+
+        /* --- Helpers --- */
+        .hidden { display: none !important; }
+        .status-badge { display: inline-block; padding: 4px 12px; border-radius: 8px; font-size: 11px; font-weight: 700; text-transform: uppercase; margin-bottom: 8px; }
+        
+        .nav-link { color: #fff; text-decoration: none; font-size: 14px; margin: 0 10px; font-weight: 500; cursor: pointer; opacity: 0.8; }
+        .nav-link:hover { opacity: 1; color: var(--primary); }
+    </style>
+</head>
+<body>
+
+    <div class="hero-slider">
+        <div class="slide active" style="background-image: url('https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?q=80&w=2000')"></div>
+        <div class="slide" style="background-image: url('https://images.unsplash.com/photo-1570125909232-eb263c188f7e?q=80&w=2000')"></div>
+    </div>
+    <div class="overlay"></div>
+
+    <header>
+        <div class="logo">DIU <span>SMART BUS</span></div>
+        <div id="userPanel" class="hidden">
+            <span class="nav-link" onclick="showSection('dashboardSection')">Home</span>
+            <span class="nav-link" onclick="showSection('manageBookingsSection')">My Bookings</span>
+            <span class="nav-link" onclick="showSection('profileSection')">Profile</span>
+            <button onclick="location.reload()" style="background:none; border:1px solid #fff; color:white; padding:7px 18px; border-radius:12px; cursor:pointer; font-size: 13px; margin-left: 15px;">Logout</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <div id="authSection" class="auth-container">
+            <div id="loginBox" class="auth-card">
+                <h2 style="margin-bottom: 10px;">Welcome Back</h2>
+                <p style="color: var(--text-muted); margin-bottom: 30px; font-size: 14px;">Log in with your DIU Student account</p>
+                <input type="email" id="loginEmail" placeholder="DIU Email (e.g. name@diu.edu.bd)">
+                <input type="password" id="loginPass" placeholder="Password">
+                <button class="btn btn-primary" onclick="handleLogin()">Sign In</button>
+                <button class="btn btn-link" onclick="toggleAuth(false)">Create New Account</button>
+            </div>
+            
+            <div id="registerBox" class="auth-card hidden">
+                <h2 style="margin-bottom: 10px;">Create Account</h2>
+                <p style="color: var(--text-muted); margin-bottom: 30px; font-size: 14px;">Join the smart transport community</p>
+                <input type="text" id="regName" placeholder="Full Name">
+                <input type="email" id="regEmail" placeholder="DIU Student Email">
+                <input type="password" id="regPass" placeholder="Create Password">
+                <button class="btn btn-success" onclick="handleRegister()">Register Now</button>
+                <button class="btn btn-link" onclick="toggleAuth(true)">Back to Login</button>
+            </div>
+        </div>
+
+        <div id="dashboardSection" class="dashboard hidden section">
+            <div class="panel">
+                <h3 style="margin-bottom: 20px;">Book Your Seat</h3>
+                <label style="font-size: 13px; font-weight: 600; color: var(--text-muted);">SELECT SHIFT</label>
+                <select id="shiftSelect" onchange="filterBuses()">
+                    <option value="">-- Choose Shift --</option>
+                    <option value="morning">Morning (To Campus)</option>
+                    <option value="evening">Evening (From Campus)</option>
+                </select>
+                
+                <div id="busList" class="bus-grid"></div>
+                
+                <div id="seatMapSection" class="hidden">
+                    <div style="text-align: center; margin-top: 50px;">
+                        <h4 style="font-weight: 700;">Select Preferred Seats</h4>
+                        <p style="font-size: 12px; color: var(--text-muted);">You can select up to 4 seats</p>
+                    </div>
+                    <div class="bus-chassis" id="seatGrid"></div>
+                </div>
+            </div>
+            
+            <div class="panel" style="height:fit-content; position:sticky; top:110px">
+                <h4 style="margin-bottom: 25px;">Booking Details</h4>
+                <div id="summaryPlaceholder" style="padding:40px 20px; text-align:center; color:var(--text-muted); border: 2px dashed #e2e8f0; border-radius: 20px;">
+                    <p>No bus selected yet</p>
+                </div>
+                
+                <div id="activeSummary" class="hidden">
+                    <div style="margin-bottom: 20px;">
+                        <p style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Selected Bus</p>
+                        <h4 id="sumBus" style="color: var(--primary);"></h4>
+                    </div>
+                    <div style="margin-bottom: 25px;">
+                        <p style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Selected Seats</p>
+                        <h4 id="sumSeats" style="letter-spacing: 1px;"></h4>
+                    </div>
+                    <div style="background:#f8fafc; padding:20px; border-radius:20px; text-align:center; margin-bottom:20px; border: 1px solid #e2e8f0;">
+                        <p style="font-size: 13px; color: var(--text-muted);">Total Amount</p>
+                        <h2 style="color:var(--text-dark); font-weight: 800;"><span id="sumTotal">0</span> TK</h2>
+                    </div>
+                    <button class="btn btn-primary" onclick="openPaymentModal()">Pay & Confirm</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="manageBookingsSection" class="hidden section">
+            <div class="panel">
+                <h3 style="margin-bottom: 20px;">Your Booking History</h3>
+                <div id="bookingList" style="color: var(--text-dark);">
+                    </div>
+            </div>
+        </div>
+
+        <div id="profileSection" class="hidden section" style="max-width: 500px; margin: 0 auto;">
+            <div class="panel">
+                <h3 style="margin-bottom: 20px; text-align: center;">Profile Settings</h3>
+                <label style="font-size: 12px; color: var(--text-muted);">FULL NAME</label>
+                <input type="text" id="profName">
+                <label style="font-size: 12px; color: var(--text-muted);">NEW PASSWORD</label>
+                <input type="password" id="profPass" placeholder="Leave blank to keep current">
+                <button class="btn btn-primary" onclick="updateProfile()">Update Profile</button>
+            </div>
+        </div>
+
+        <div id="paymentModal" class="modal-overlay hidden">
+            <div class="payment-modal">
+                <h3 style="text-align: center;">Confirm Payment</h3>
+                <p style="text-align: center; color: var(--text-muted); font-size: 14px;">Total Payable: <strong style="color:var(--text-dark)"><span id="payAmount"></span> TK</strong></p>
+                
+                <div class="pay-methods">
+                    <img src="https://pathao.com/wp-content/uploads/2019/03/bkash-1.png" class="pay-icon" onclick="selectPay(this)" alt="Bkash">
+                    <img src="https://freelogopng.com/images/all_img/1679248787nagad-logo-png.png" class="pay-icon" onclick="selectPay(this)" alt="Nagad">
+                </div>
+
+                <input type="number" id="payNumber" placeholder="Bkash/Nagad Number">
+                <input type="text" id="payTrx" placeholder="Transaction ID">
+                
+                <button class="btn btn-primary" onclick="processPayment()">Confirm Booking</button>
+                <button class="btn" style="background:transparent; color: var(--danger); font-size: 14px;" onclick="closePaymentModal()">Cancel</button>
+            </div>
+        </div>
+
+        <div id="ticketPageSection" class="hidden section">
+            <div class="auth-card" style="max-width: 600px; margin: 20px auto;">
+                <div style="width: 70px; height: 70px; background: var(--secondary); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; color: white; font-size: 30px;">✓</div>
+                <h2 style="margin-bottom: 5px;">Booking Confirmed!</h2>
+                <p style="color: var(--text-muted); margin-bottom: 30px;">Show this ticket to the bus helper</p>
+
+                <div id="ticketToPrint" style="background:#fff; border:2px dashed #cbd5e1; padding:30px; text-align:left; border-radius:20px; position: relative;">
+                    <div style="background: var(--primary); color: white; padding: 6px 12px; border-radius: 8px; display: inline-block; font-size: 10px; font-weight: 800; margin-bottom: 20px;">BOARDING PASS</div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div>
+                            <p style="font-size: 10px; color: var(--text-muted); text-transform: uppercase;">Passenger</p>
+                            <p style="font-weight: 700; font-size: 14px;" id="tPass"></p>
+                        </div>
+                        <div>
+                            <p style="font-size: 10px; color: var(--text-muted); text-transform: uppercase;">Bus Route</p>
+                            <p style="font-weight: 700; font-size: 14px;" id="tBus"></p>
+                        </div>
+                        <div>
+                            <p style="font-size: 10px; color: var(--text-muted); text-transform: uppercase;">Seat Number(s)</p>
+                            <p style="font-weight: 700; font-size: 16px; color: var(--primary);" id="tSeats"></p>
+                        </div>
+                        <div>
+                            <p style="font-size: 10px; color: var(--text-muted); text-transform: uppercase;">Trx ID</p>
+                            <p style="font-weight: 700; font-size: 14px;" id="tTrx"></p>
+                        </div>
+                    </div>
+                    <hr style="margin: 20px 0; border: none; border-top: 1px solid #f1f5f9;">
+                    <div style="text-align: right;">
+                        <p style="font-size: 10px; color: var(--text-muted);">Amount Paid</p>
+                        <h3 id="tFare" style="font-weight: 800;"></h3>
+                    </div>
+                </div>
+                
+                <button class="btn btn-primary" onclick="downloadTicket()">Download PDF</button>
+                <button class="btn" style="background:#f1f5f9; color:var(--text-dark)" onclick="showSection('dashboardSection')">Book Another</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Core Data ---
+        const buses = [
+            { id: 1, name: "Uttara Express", route: "Uttara ➔ DSC", price: 60, type: "morning" },
+            { id: 2, name: "Mirpur Link", route: "Mirpur ➔ DSC", price: 50, type: "morning" },
+            { id: 3, name: "Dhanmondi Shuttle", route: "Dhanmondi ➔ DSC", price: 55, type: "morning" },
+            { id: 4, name: "Uttara Return", route: "DSC ➔ Uttara", price: 60, type: "evening" },
+            { id: 5, name: "Mirpur Return", route: "DSC ➔ Mirpur", price: 50, type: "evening" },
+            { id: 6, name: "Dhanmondi Return", route: "DSC ➔ Dhanmondi", price: 55, type: "evening" }
+        ];
+
+        let currentUser = null;
+        let selectedBus = null;
+        let selectedSeats = [];
+
+        // --- Navigation Logic ---
+        function showSection(id) {
+            document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
+            document.getElementById(id).classList.remove('hidden');
+            if(id === 'manageBookingsSection') renderBookingHistory();
+            if(id === 'profileSection') {
+                document.getElementById('profName').value = currentUser.name;
+                document.getElementById('profPass').value = "";
+            }
+        }
+
+        function toggleAuth(showLogin) {
+            document.getElementById('loginBox').classList.toggle('hidden', !showLogin);
+            document.getElementById('registerBox').classList.toggle('hidden', showLogin);
+        }
+
+        // --- CRUD: User Registration (Create) ---
+        function handleRegister() {
+            const name = document.getElementById('regName').value;
+            const email = document.getElementById('regEmail').value;
+            const pass = document.getElementById('regPass').value;
+            
+            if(!name || !email || !pass) return alert("Please fill all fields");
+            
+            let users = JSON.parse(localStorage.getItem('diu_users_v4') || '[]');
+            if(users.some(u => u.email === email)) return alert("Email already registered!");
+            
+            users.push({name, email, pass});
+            localStorage.setItem('diu_users_v4', JSON.stringify(users));
+            alert("Account Created Successfully! Please Log In."); 
+            toggleAuth(true);
+        }
+
+        // --- CRUD: Login (Read) ---
+        function handleLogin() {
+            const email = document.getElementById('loginEmail').value;
+            const pass = document.getElementById('loginPass').value;
+            const users = JSON.parse(localStorage.getItem('diu_users_v4') || '[]');
+            const user = users.find(u => u.email === email && u.pass === pass);
+            
+            if(user) {
+                currentUser = user;
+                document.getElementById('authSection').classList.add('hidden');
+                document.getElementById('userPanel').classList.remove('hidden');
+                showSection('dashboardSection');
+            } else alert("Invalid Email or Password!");
+        }
+
+        // --- CRUD: Update Profile (Update User) ---
+        function updateProfile() {
+            let users = JSON.parse(localStorage.getItem('diu_users_v4') || '[]');
+            const idx = users.findIndex(u => u.email === currentUser.email);
+            const newName = document.getElementById('profName').value;
+            const newPass = document.getElementById('profPass').value;
+
+            if(!newName) return alert("Name cannot be empty");
+
+            users[idx].name = newName;
+            if(newPass) users[idx].pass = newPass;
+
+            localStorage.setItem('diu_users_v4', JSON.stringify(users));
+            currentUser = users[idx];
+            alert("Profile Updated Successfully!");
+        }
+
+        // --- Booking Logic ---
+        function filterBuses() {
+            const shift = document.getElementById('shiftSelect').value;
+            const list = document.getElementById('busList');
+            list.innerHTML = "";
+            document.getElementById('seatMapSection').classList.add('hidden');
+            document.getElementById('activeSummary').classList.add('hidden');
+            document.getElementById('summaryPlaceholder').classList.remove('hidden');
+
+            buses.filter(b => b.type === shift).forEach(bus => {
+                const card = document.createElement('div');
+                card.className = 'bus-card';
+                card.innerHTML = `<span class="status-badge" style="background:#dbeafe; color:#1e40af">${bus.type}</span><br>
+                                  <strong>${bus.name}</strong><br>
+                                  <small style="color:var(--text-muted)">${bus.route}</small><br>
+                                  <p style="margin-top:10px; font-weight:700;">${bus.price} TK</p>`;
+                card.onclick = () => {
+                    selectedBus = bus;
+                    selectedSeats = [];
+                    document.querySelectorAll('.bus-card').forEach(c => c.classList.remove('active'));
+                    card.classList.add('active');
+                    document.getElementById('seatMapSection').classList.remove('hidden');
+                    document.getElementById('activeSummary').classList.remove('hidden');
+                    document.getElementById('summaryPlaceholder').classList.add('hidden');
+                    document.getElementById('sumBus').innerText = bus.name + " (" + bus.route + ")";
+                    renderSeats();
+                    updateSummary();
+                };
+                list.appendChild(card);
+            });
+        }
+
+        function renderSeats() {
+            const grid = document.getElementById('seatGrid');
+            grid.innerHTML = "";
+            const rows = ['A','B','C','D','E','F','G','H','I','J'];
+            const bookings = JSON.parse(localStorage.getItem('diu_bookings_v4') || '[]');
+            const taken = bookings.filter(b => b.busId === selectedBus.id).flatMap(b => b.seats);
+
+            rows.forEach(r => {
+                const rowDiv = document.createElement('div');
+                rowDiv.className = 'seat-row';
+                for(let i=1; i<=5; i++) {
+                    if(i === 3) { // Aisle
+                        const aisle = document.createElement('div');
+                        aisle.className = 'aisle';
+                        rowDiv.appendChild(aisle);
+                        continue; 
+                    }
+                    let colNum = i > 3 ? i - 1 : i;
+                    const sid = r + colNum;
+                    const isTaken = taken.includes(sid);
+                    const s = document.createElement('div');
+                    s.className = `seat ${isTaken ? 'booked' : ''}`;
+                    s.innerText = sid;
+                    if(!isTaken) {
+                        s.onclick = function() {
+                            if(selectedSeats.includes(sid)) {
+                                selectedSeats = selectedSeats.filter(x => x !== sid);
+                                s.classList.remove('selected');
+                            } else {
+                                if(selectedSeats.length >= 4) return alert("You can only book 4 seats!");
+                                selectedSeats.push(sid);
+                                s.classList.add('selected');
+                            }
+                            updateSummary();
+                        };
+                    }
+                    rowDiv.appendChild(s);
+                }
+                grid.appendChild(rowDiv);
+            });
+        }
+
+        function updateSummary() {
+            const total = selectedSeats.length * (selectedBus ? selectedBus.price : 0);
+            document.getElementById('sumSeats').innerText = selectedSeats.length ? selectedSeats.join(', ') : "---";
+            document.getElementById('sumTotal').innerText = total;
+            document.getElementById('payAmount').innerText = total;
+        }
+
+        // --- CRUD: Process Payment (Create Booking) ---
+        function openPaymentModal() {
+            if(!selectedSeats.length) return alert("Select a seat first!");
+            document.getElementById('paymentModal').classList.remove('hidden');
+        }
+
+        function closePaymentModal() {
+            document.getElementById('paymentModal').classList.add('hidden');
+        }
+
+        function selectPay(el) {
+            document.querySelectorAll('.pay-icon').forEach(i => i.classList.remove('selected'));
+            el.classList.add('selected');
+        }
+
+        function processPayment() {
+            const num = document.getElementById('payNumber').value;
+            const trx = document.getElementById('payTrx').value;
+            const method = document.querySelector('.pay-icon.selected');
+
+            if(!method) return alert("Select payment method");
+            if(num.length < 11 || trx.length < 4) return alert("Invalid details!");
+
+            const bookings = JSON.parse(localStorage.getItem('diu_bookings_v4') || '[]');
+            const newBooking = { 
+                id: Date.now(), // Unique ID for update/delete
+                busId: selectedBus.id, 
+                busName: selectedBus.name,
+                seats: [...selectedSeats], 
+                studentEmail: currentUser.email, 
+                trx: trx,
+                fare: selectedSeats.length * selectedBus.price
+            };
+            bookings.push(newBooking);
+            localStorage.setItem('diu_bookings_v4', JSON.stringify(bookings));
+
+            document.getElementById('tPass').innerText = currentUser.name;
+            document.getElementById('tBus').innerText = selectedBus.name;
+            document.getElementById('tSeats').innerText = selectedSeats.join(', ');
+            document.getElementById('tFare').innerText = newBooking.fare + " TK";
+            document.getElementById('tTrx').innerText = trx;
+
+            closePaymentModal();
+            showSection('ticketPageSection');
+        }
+
+        // --- CRUD: History (Read) and Update/Delete Bookings ---
+        function renderBookingHistory() {
+            const list = document.getElementById('bookingList');
+            const bookings = JSON.parse(localStorage.getItem('diu_bookings_v4') || '[]');
+            const myBookings = bookings.filter(b => b.studentEmail === currentUser.email);
+            
+            if(!myBookings.length) {
+                list.innerHTML = "<p style='text-align:center; padding:20px;'>No bookings found.</p>";
+                return;
+            }
+
+            list.innerHTML = myBookings.map(b => `
+                <div style="background:#f8fafc; padding:20px; border-radius:15px; margin-bottom:15px; border:1px solid #e2e8f0; display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <strong style="color:var(--primary)">${b.busName}</strong><br>
+                        <small>Seats: ${b.seats.join(', ')} | Fare: ${b.fare} TK</small>
+                    </div>
+                    <div style="display:flex; gap:10px;">
+                        <button onclick="deleteBooking(${b.id})" style="background:var(--danger); color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer; font-size:12px;">Cancel</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // --- CRUD: Cancel Booking (Delete) ---
+        function deleteBooking(id) {
+            if(!confirm("Are you sure you want to cancel this booking?")) return;
+            let bookings = JSON.parse(localStorage.getItem('diu_bookings_v4') || '[]');
+            bookings = bookings.filter(b => b.id !== id);
+            localStorage.setItem('diu_bookings_v4', JSON.stringify(bookings));
+            renderBookingHistory();
+        }
+
+        async function downloadTicket() {
+            const ticket = document.getElementById('ticketToPrint');
+            const canvas = await html2canvas(ticket);
+            const img = canvas.toDataURL('image/png');
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            pdf.addImage(img, 'PNG', 15, 15, 180, 100);
+            pdf.save("DIU_Bus_Ticket.pdf");
+        }
+
+        // --- BG Animation ---
+        setInterval(() => {
+            const slides = document.querySelectorAll('.slide');
+            let idx = [...slides].findIndex(s => s.classList.contains('active'));
+            slides[idx].classList.remove('active');
+            slides[(idx + 1) % slides.length].classList.add('active');
+        }, 5000);
+    </script>
+</body>
+</html>
